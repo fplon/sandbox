@@ -1,0 +1,3 @@
+grafana:
+  # dont actually do this...
+  adminPassword: test

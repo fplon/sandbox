@@ -1,0 +1,11 @@
+env:
+  TZ: "Europe/London"
+
+persistence:
+  homarrDatabase:
+    enabled: true
+    size: 1Gi
+
+service:
+  enabled: true
+  type: LoadBalancer
