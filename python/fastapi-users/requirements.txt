@@ -1,0 +1,4 @@
+fastapi
+fastapi-users[beanie,oauth]
+pydantic-settings==2.0.3
+uvicorn[standard]
