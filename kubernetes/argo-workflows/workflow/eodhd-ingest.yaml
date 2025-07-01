@@ -1,0 +1,98 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: eodhd-ingest-
+  namespace: argo
+spec:
+  serviceAccountName: argo-workflow-sa
+  entrypoint: eodhd-ingest-dag
+  arguments:
+    parameters:
+      - name: data_type
+        value: exchanges
+  #
+  templates:
+    - name: eodhd-ingest-dag
+      dag:
+        tasks:
+          - name: eodhd-ingest
+            template: eodhd-ingest-step
+            arguments:
+              parameters:
+                - name: data_type
+                  # value: "{{workflows.parameters.data_type}}"
+                  value: exchanges
+
+    - name: eodhd-ingest-step
+      inputs:
+        parameters:
+          - name: data_type
+      container:
+        image: "market-data-ingestion:dev"
+        command: ["python", "-c"]
+        args:
+          - |
+            import asyncio
+            from src.orchestration.eodhd.eodhd import run_eodhd_data_ingestion
+            asyncio.run(run_eodhd_data_ingestion('{{inputs.parameters.data_type}}'))
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: "/var/secrets/google/key.json"
+          - name: EODHD_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: eodhd-secret
+                key: EODHD_API_KEY
+          - name: EODHD_BASE_URL
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_BASE_URL
+          - name: GCP_BUCKET_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: GCP_BUCKET_NAME
+          - name: EODHD_EXCHANGES
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_EXCHANGES
+          - name: EODHD_EXCHANGES_BULK
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_EXCHANGES_BULK
+          - name: EODHD_INSTRUMENTS
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_INSTRUMENTS
+          - name: EODHD_MACRO_INDICATORS
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_MACRO_INDICATORS
+          - name: EODHD_MACRO_COUNTRIES
+            valueFrom:
+              configMapKeyRef:
+                name: eodhd-config
+                key: EODHD_MACRO_COUNTRIES
+
+        volumeMounts:
+          - name: google-cloud-key
+            mountPath: /var/secrets/google
+            readOnly: true
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+
+  volumes:
+    - name: google-cloud-key
+      secret:
+        secretName: google-cloud-key

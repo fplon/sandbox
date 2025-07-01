@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eodhd-config
+  namespace: argo
+data:
+  EODHD_BASE_URL: "https://eodhd.com/api/"
+  GCP_BUCKET_NAME: "datalake-dev-bronze"
+  EODHD_EXCHANGES: '["XETRA"]'
+  EODHD_EXCHANGES_BULK: '["TO"]'
+  EODHD_INSTRUMENTS: '["AAPL.US","GB00B9876293.EUFUND","GB00BG0QPQ07.EUFUND","IXIC.INDX"]'
+  EODHD_MACRO_INDICATORS: '["unemployment_total_percent","inflation_consumer_prices_annual","gdp_growth_annual"]'
+  EODHD_MACRO_COUNTRIES: '["USA","GBR"]'
