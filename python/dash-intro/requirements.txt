@@ -1,0 +1,7 @@
+# dash==2.8.1
+# pandas==1.5.3
+dash
+pandas
+dash-extensions
+dash-bootstrap-components
+
