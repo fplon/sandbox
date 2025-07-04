@@ -1,0 +1,125 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: eodhd-ingestion-
+  namespace: argo
+spec:
+  entrypoint: eodhd-ingest-dag
+  onExit: exit-handler
+  activeDeadlineSeconds: 7200
+  templates:
+    - name: eodhd-ingest-dag
+      dag:
+        tasks:
+          - name: exchanges
+            template: mock-ingestion-output-only-step
+          - name: instruments
+            dependencies: [exchanges]
+            template: mock-ingestion-input-output-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.exchanges.outputs.parameters.data-ids}}"
+          - name: prices
+            dependencies: [instruments]
+            template: mock-ingestion-input-only-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.instruments.outputs.parameters.data-ids}}"
+          - name: dividends
+            dependencies: [instruments]
+            template: mock-ingestion-input-only-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.instruments.outputs.parameters.data-ids}}"
+          - name: splits
+            dependencies: [instruments]
+            template: mock-ingestion-input-only-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.instruments.outputs.parameters.data-ids}}"
+          - name: news
+            dependencies: [instruments]
+            template: mock-ingestion-input-only-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.instruments.outputs.parameters.data-ids}}"
+          - name: macro-indicators
+            template: mock-ingestion-output-only-step
+          - name: economic-calendar
+            template: mock-ingestion-output-only-step
+          - name: indices
+            template: mock-ingestion-output-only-step
+          - name: index-constituents
+            dependencies: [indices]
+            template: mock-ingestion-input-only-step
+            arguments:
+              parameters:
+                - name: data-ids
+                  value: "{{tasks.indices.outputs.parameters.data-ids}}"
+
+    - name: mock-ingestion-input-only-step
+      inputs:
+        parameters:
+          - name: data-ids
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo 'recieved: {{inputs.parameters.data-ids}}'"]
+      activeDeadlineSeconds: 300
+
+    - name: mock-ingestion-output-only-step
+      outputs:
+        parameters:
+          - name: data-ids
+            value: "[id111, id112, id113]"
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        # args: ["echo 'sent: [id111, id112, id113]'"]
+        args: ["echo 'sent: {{outputs.parameters.data-ids}}'"]
+      activeDeadlineSeconds: 300
+
+    - name: mock-ingestion-input-output-step
+      inputs:
+        parameters:
+          - name: data-ids
+      outputs:
+        parameters:
+          - name: data-ids
+            value: "{{inputs.parameters.data-ids}}"
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args:
+          [
+            "echo 'recieved: {{inputs.parameters.data-ids}} and sent: {{outputs.parameters.data-ids}}'",
+          ]
+      activeDeadlineSeconds: 600
+
+    - name: exit-handler
+      steps:
+        - - name: notify
+            template: send-email
+          - name: update-manifest
+            template: manifest-write
+            when: "{{workflow.status}} == Succeeded"
+
+    - name: send-email
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args:
+          [
+            "echo 'send email: {{workflow.name}} {{workflow.status}} {{workflow.duration}}'",
+          ]
+
+    - name: manifest-write
+      container:
+        image: alpine:latest
+        command: [sh, -c]
+        args: ["echo 'updating manifest'"]
